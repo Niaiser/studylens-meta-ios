@@ -1,11 +1,11 @@
 
-name: StudyLens - Verification iOS
+name: StudyLens - Build CameraAccess
 
 on:
   workflow_dispatch:
 
 jobs:
-  verify-ios:
+  build-camera-access:
     runs-on: macos-26
 
     steps:
@@ -13,11 +13,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verifier Xcode
-        run: xcodebuild -version
-
-      - name: Verifier Swift
-        run: swift --version
-
-      - name: Lister les projets iOS
         run: |
-          find . -maxdepth 5 \( -name "*.xcodeproj" -o -name "*.xcworkspace" -o -name "Package.swift" \) -print
+          xcodebuild -version
+          swift --version
+
+      - name: Lister les simulateurs iOS
+        run: xcrun simctl list devices available
+
+      - name: Compiler CameraAccess
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project samples/CameraAccess/CameraAccess.xcodeproj \
+            -scheme CameraAccess \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/CameraAccessBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Archiver l'application compilée
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CameraAccess-iOS-Simulator
+          path: ${{ runner.temp }}/CameraAccessBuild/Build/Products/Debug-iphonesimulator/CameraAccess.app
+          if-no-files-found: error
+          retention-days: 7
