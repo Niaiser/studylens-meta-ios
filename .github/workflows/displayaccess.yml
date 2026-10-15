@@ -1,0 +1,52 @@
+
+name: StudyLens - Build DisplayAccess
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-display-access:
+    runs-on: macos-26
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Verifier Xcode
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Verifier le projet DisplayAccess
+        run: |
+          ls -la samples/DisplayAccess
+          xcodebuild -list -project samples/DisplayAccess/DisplayAccess.xcodeproj
+
+      - name: Compiler DisplayAccess pour iPhone
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project samples/DisplayAccess/DisplayAccess.xcodeproj \
+            -scheme DisplayAccess \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/DisplayAccessBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Preparer le paquet iPhone non signe
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/DisplayAccessIPA/Payload"
+          cp -R "$RUNNER_TEMP/DisplayAccessBuild/Build/Products/Debug-iphoneos/DisplayAccess.app" \
+            "$RUNNER_TEMP/DisplayAccessIPA/Payload/DisplayAccess.app"
+          cd "$RUNNER_TEMP/DisplayAccessIPA"
+          zip -r "$RUNNER_TEMP/StudyLens-DisplayAccess-unsigned.ipa" Payload
+
+      - name: Archiver le paquet iPhone
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyLens-DisplayAccess-iPhone-unsigned
+          path: ${{ runner.temp }}/StudyLens-DisplayAccess-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
