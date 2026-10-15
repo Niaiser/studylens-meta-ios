@@ -44,6 +44,23 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Préparer le paquet iPhone non signé
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/CameraAccessIPA/Payload"
+          cp -R "$RUNNER_TEMP/CameraAccessDeviceBuild/Build/Products/Debug-iphoneos/CameraAccess.app" \
+            "$RUNNER_TEMP/CameraAccessIPA/Payload/CameraAccess.app"
+          cd "$RUNNER_TEMP/CameraAccessIPA"
+          zip -r "$RUNNER_TEMP/StudyLens-CameraAccess-unsigned.ipa" Payload
+
+      - name: Archiver le paquet iPhone
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyLens-CameraAccess-iPhone-unsigned
+          path: ${{ runner.temp }}/StudyLens-CameraAccess-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Archiver l'application compilée
         if: success()
         uses: actions/upload-artifact@v4
