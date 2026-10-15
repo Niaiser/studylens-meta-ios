@@ -6,7 +6,7 @@ on:
 
 jobs:
   verify-ios:
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: Recuperer le code
