@@ -1,0 +1,54 @@
+name: StudyLens - Build integrated Camera and Display
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-study-lens:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Resolve packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project samples/BirdSpotter/BirdSpotter.xcodeproj \
+            -scheme birdspotter
+
+      - name: Build integrated iPhone app (camera + display)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project samples/BirdSpotter/BirdSpotter.xcodeproj \
+            -scheme birdspotter \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath "$RUNNER_TEMP/StudyLensBuild" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/StudyLensBuild/Build/Products/Debug-iphoneos/birdspotter.app"
+          test -d "$APP"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName StudyLens" "$APP/Info.plist" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string StudyLens" "$APP/Info.plist"
+          mkdir -p "$RUNNER_TEMP/StudyLensIPA/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/StudyLensIPA/Payload/StudyLens.app"
+          cd "$RUNNER_TEMP/StudyLensIPA"
+          /usr/bin/zip -qry "$RUNNER_TEMP/StudyLens-Integrated-unsigned.ipa" Payload
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyLens-Integrated-iPhone-unsigned
+          path: ${{ runner.temp }}/StudyLens-Integrated-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
